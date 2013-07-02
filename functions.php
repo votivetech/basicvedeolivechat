@@ -2,17 +2,18 @@
 
 class Functions extends CI_Model {
 
-  function __construct()
+	function __construct()
 	{
 		parent::__construct();
 		
 	}
-	//function to get page limits
+	//function to get page limits......//
 	function getPagelimit()
 	{
-		return 2;	
+		return 8;	
 	}
-	//function to get page links
+	
+	//function to get page links for pagination................//
 	function getPageLinks($url,$perpage,$rows)
 	{
 		$config['base_url'] = base_url().$url;
@@ -48,10 +49,10 @@ class Functions extends CI_Model {
 	{
 		if($userid!=NULL)
 		{
-			$query=$this->db->select('userid,name,email,usertype,password,age,from,aboutme,photo,video')->from('users')->where('userid',$userid)->get();
+			$query=$this->db->select('userid,name,email,usertype,password,age,from,aboutme,photo,video,credits,amounts')->from('users')->where('userid',$userid)->get();
 			if($query->num_rows()!=0)
 			{
-				return $query->result();
+				return $query->row();
 			}
 		}
 	}
@@ -64,7 +65,7 @@ class Functions extends CI_Model {
 		}	
 	}
 	
-	//check session 
+	//check session ..................//
 	function checkSession($users=array())
 	{
 		if($this->session->userdata('sessuserid'))
@@ -75,7 +76,7 @@ class Functions extends CI_Model {
 			}
 		}	
 		else{
-			redirect(base_url());
+				redirect(base_url());
 			}
 	}
 	//function to get all users
@@ -171,7 +172,7 @@ class Functions extends CI_Model {
 	{
 			if($vid!=NULL && is_numeric($vid))
 			{
-					$this->db->select('video,videoid,catid,name,price,userid,status')->from('videos');
+					$this->db->select('video,videoid,catid,name,price,userid,status,vimage,vimage')->from('videos');
 					$this->db->where('videoid',$vid);
 					if($uid!=NULL){
 					$this->db->where('userid',$uid);
@@ -227,7 +228,7 @@ class Functions extends CI_Model {
 	{
 		if($filename!=NULL)
 		{
-			$this->db->select('a.video,a.videoid,a.status,a.catid,a.name,a.price,b.category,c.name profilename,c.age')->from('videos a left join categories b on a.catid = b.catid left join users c on c.userid = a.userid');
+			$this->db->select('a.video,a.videoid,a.status,a.catid,a.name,a.price,a.vimage,b.category,c.name profilename,c.age')->from('videos a left join categories b on a.catid = b.catid left join users c on c.userid = a.userid');
 			$this->db->where('a.video = "'.$filename.'"');
 			$query=$this->db->get();
 			if($query->num_rows()!=0)
@@ -239,7 +240,7 @@ class Functions extends CI_Model {
 	//function to get sim ilar videos 
 	function getSimilarVideos($catid)
 	{
-			$this->db->select('a.video,a.videoid,a.status,a.catid,a.name,a.price,b.category,c.name profilename,c.age')->from('videos a left join categories b on a.catid = b.catid left join users c on c.userid = a.userid');
+			$this->db->select('a.video,a.videoid,a.status,a.catid,a.name,a.price,a.vimage,b.category,c.name profilename,c.age')->from('videos a left join categories b on a.catid = b.catid left join users c on c.userid = a.userid')->where('a.status',1);
 			if($catid!=NULL)	{
 				$this->db->where('a.catid like "'.$catid.'"');
 			}
@@ -250,6 +251,114 @@ class Functions extends CI_Model {
 				return $query->result();
 			}	
 	}
+	//function to get all credits
+	function getCredits()
+	{
+			$query=$this->db->select('credits,amount,creditid')->from('setcredits')->get();
+			if($query->num_rows()!=0)
+			{
+				return $query->result();
+			}
+	}
+	//function to delete credits
+	function deleteCredit($creditid=NULL)
+	{
+		if($creditid!=NULL)
+		{
+			$this->db->where('creditid',$creditid);
+			$this->db->delete('setcredits');
+			return 'Credits Deleted Successfully.';
+		}
+	}
+	//check video view authority for user and amateur.................//
+	function viewAuthority($videoData)
+	{
+		if(isset($videoData))
+		{
+			//if login member is user ........................//
+			if($this->session->userdata('sessusertype')=='User')
+			{
+				//deduct credits from user crdit balance 
+				return $data['message']=$this->deductCredits($this->session->userdata('sessuserid'),$videoData);
+			}
+			//if login member is amateur.....................//
+			if($this->session->userdata('sessusertype')=='Amateur')
+			{
+				$query=$this->db->select('videoid')->from('videos')->where('videoid',$videoData->videoid)->where('userid',$this->session->userdata('sessuserid'))->get();
+				if($query->num_rows()==0)
+				{ 
+					return array('noauthority'=>'Sorry you are not authorise to view this video.');
+				}
+			}
+		}
+	}
+	
+	//function to deduct credits
+	function deductCredits($user=NULL,$videoData=NULL)
+	{
+		if(isset($user) && $videoData!=NULL)
+		{
+			$userData=$this->getUserData($user);
+			$price=$videoData->price;
+			if(isset($userData->credits))
+			{
+				$oldCredits=$userData->credits;
+				if($oldCredits>=$price){
+					$newCredits=$oldCredits-$price;
+					$this->db->where('userid',$user);
+					$this->db->update('users',array('credits'=>$newCredits));
+					
+					//income for video
+					$incomeArray=array(
+					'userid'=>$user,
+					'videoid'=>$videoData->videoid,
+					'income'=>$videoData->price,
+					'date'=>date('Y-m-d'),
+					'time'=>date('h:i:s'),
+					);
+					$this->db->insert('income',$incomeArray);
+					$this->session->set_userdata('vconfirm',true);
+				}else{
+					return array('noauthority'=>'Sorry you have not enough credits to view this video. <br><br><a style="float:none;" class="buylink" href="'.base_url().'user/buycredits"><img alt="" src="'.base_url().'content/images/crowds.png" style="float:left">Buy Credits</a>');
+				}
+			}
+		}
+	}
+	
+	//fuction to get total icome of amateur
+	function getTotalIncome($amateur=NULL)
+	{
+	
+		if($amateur!=NULL)
+		{
+			$query=$this->db->select('sum(income) as totalincome')->from('income a left join videos b on a.videoid=b.videoid')->where('b.userid',$amateur)->get();
+			if($query->num_rows()!=0)
+			{
+				$row= $query->row();
+				return $row->totalincome;
+			}
+			
+		}
+	}
+	
+	//function to change payment satus for payouts............//
+	function changePayoutStatus($payout)
+	{
+		if(isset($payout) && is_numeric($payout))
+		{
+			$query=$this->db->select('status')->from('payouts')->where('payoutid',$payout)->get();
+			if($query->num_rows()!=0)
+			{
+				$olddata=$query->row();
+				$old=$olddata->status;
+				if($old==0){$data=array('status'=>1);}
+				else{$data=array('status'=>0);}
+				$this->db->where('payoutid',$payout);
+				$this->db->update('payouts',$data);
+			}
+		}
+	}
+	
 }
 /* End of file welcome.php */
 /* Location: ./application/controllers/welcome.php */
