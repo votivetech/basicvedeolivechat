@@ -1,0 +1,59 @@
+<?php require_once('header.php'); ?>
+<section id="fullcontent">
+ <div class="clear"></div>
+  	 <h2 class="black">Manage Video Categories</h2>
+      <hr>
+<div class="searchdiv">
+                        <form action="<?php echo base_url(); ?>user/managecategory" method="post">
+                        	<br>
+                        	<table cellpadding="0" cellspacing="0" width="100%">
+                            	<tr>
+                                	<td width="18%" align="center"><strong>Add New Category</strong></td>
+                                    <td width="16%">
+                                   	 <input type="text" name="category" value="" >
+                                  </td>
+                               		<td width="17%" align="center" valign="top">
+										<input type="submit" name="addcategory" value="ADD" class="btn btn-red5">
+								  </td>
+									<td width="49%" ><span class="error">&nbsp;<?php echo strip_tags(form_error('category')); ?></span><span class="success"><?php if(isset($addsuccess)){ echo $addsuccess;} ?></span></td>
+								</tr>
+						  </table>
+                         </form>
+                        </div>
+    <section id="content">
+	 <div class="ke-schvaleni">
+     <?php if(isset($categories)){ ?>
+		<table class='table' cellpadding="0" cellspacing="0" width="100%">
+												<tr>
+													<th width="8%" align="left">S. No.</th>
+													<th width="39%">Category Name</th>
+													<th width="20%">Update</th>
+													<th width="20%">Status</th>
+                                                    <th width="10%">Delete</th>
+												</tr>
+                                                <?php 
+													$i=1;
+													foreach($categories as $cat){
+													 ?>
+												<form method="post" action="">
+												<input type="hidden" name="updateId" value="<?php echo $cat->catid; ?>">
+												<tr>
+													<td ><?php echo $i; ?></td>
+													<td >
+														<input type="text" name="catupdate" value="<?php echo $cat->category; ?>">
+													</td>
+													<td ><input type="submit" name="updatecat" value="Update"></td>
+													<th width="20%"><a href="<?php echo base_url();?>user/managecategory/changestatus/<?php echo $cat->catid; ?>"><?php if($cat->status==1){ echo 'Active';}else{ echo 'inactive';} ?></a></th>
+                                                    <td width="10%" >
+                                                    	<a href="<?php echo base_url(); ?>user/managecategory/delete/<?php echo $cat->catid; ?>"><img src="<?php echo base_url(); ?>content/images/del.png"></a>                                                    </td>
+												</tr>
+												</form>
+                                                <?php $i++;} ?>
+										</table>
+		<?php }else{ ?>
+  	   	<div class="error" align="center">NO Categories Available</div>
+		<?php } ?>
+        </div>
+       </section>
+</section>
+<?php require_once('footer.php'); ?>
